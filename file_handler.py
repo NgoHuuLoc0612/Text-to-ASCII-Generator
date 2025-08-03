@@ -1,0 +1,358 @@
+#!/usr/bin/env python3
+"""
+File Handler Module
+Manages file input/output operations for saving and loading ASCII art and text
+"""
+
+import os
+import datetime
+import json
+
+class FileHandler:
+    <div class="header">
+        <h1>{title}</h1>
+        <p>Generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
+    </div>
+    
+    <div class="ascii-container">{ascii_art}</div>
+    
+    <div class="footer">
+        <p>Created with Text-to-ASCII Art Generator</p>
+    </div>
+</body>
+</html>"""
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            return filepath
+        except IOError as e:
+            raise Exception(f"Error saving HTML file: {e}")
+
+    def list_saved_files(self):
+        """List all saved ASCII art files"""
+        if not os.path.exists(self.output_directory):
+            return []
+        
+        files = []
+        try:
+            for filename in os.listdir(self.output_directory):
+                filepath = os.path.join(self.output_directory, filename)
+                if os.path.isfile(filepath):
+                    file_info = {
+                        'name': filename,
+                        'path': filepath,
+                        'size': os.path.getsize(filepath),
+                        'modified': datetime.datetime.fromtimestamp(
+                            os.path.getmtime(filepath)
+                        ).strftime('%Y-%m-%d %H:%M:%S'),
+                        'type': self._get_file_type(filename)
+                    }
+                    files.append(file_info)
+        except OSError:
+            pass
+        
+        return sorted(files, key=lambda x: x['modified'], reverse=True)
+
+    def _get_file_type(self, filename):
+        """Determine file type based on extension"""
+        ext = os.path.splitext(filename)[1].lower()
+        type_map = {
+            '.txt': 'Text',
+            '.html': 'HTML',
+            '.json': 'Metadata',
+            '.md': 'Markdown',
+            '.rst': 'reStructuredText'
+        }
+        return type_map.get(ext, 'Unknown')
+
+    def delete_file(self, filename):
+        """Delete a saved file"""
+        filepath = os.path.join(self.output_directory, filename)
+        
+        if not os.path.exists(filepath):
+            raise Exception(f"File not found: {filename}")
+        
+        try:
+            os.remove(filepath)
+            return True
+        except OSError as e:
+            raise Exception(f"Error deleting file: {e}")
+
+    def backup_files(self, backup_name=None):
+        """Create a backup of all saved files"""
+        import zipfile
+        
+        if backup_name is None:
+            backup_name = f"ascii_backup_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        if not backup_name.endswith('.zip'):
+            backup_name += '.zip'
+        
+        backup_path = os.path.join(self.output_directory, backup_name)
+        
+        try:
+            with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for filename in os.listdir(self.output_directory):
+                    if filename != backup_name:  # Don't include the backup file itself
+                        filepath = os.path.join(self.output_directory, filename)
+                        if os.path.isfile(filepath):
+                            zipf.write(filepath, filename)
+            
+            return backup_path
+        except Exception as e:
+            raise Exception(f"Error creating backup: {e}")
+
+    def get_file_content(self, filename):
+        """Get the content of a saved file"""
+        filepath = os.path.join(self.output_directory, filename)
+        
+        if not os.path.exists(filepath):
+            raise Exception(f"File not found: {filename}")
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                return f.read()
+        except IOError as e:
+            raise Exception(f"Error reading file: {e}")
+
+    def save_batch_ascii(self, text_list, font_name, batch_name=None):
+        """Save multiple ASCII arts in a single batch file"""
+        if batch_name is None:
+            batch_name = f"batch_ascii_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        if not batch_name.endswith('.txt'):
+            batch_name += '.txt'
+        
+        filepath = os.path.join(self.output_directory, batch_name)
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write("=" * 80 + "\n")
+                f.write("BATCH ASCII ART GENERATION\n")
+                f.write(f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Font used: {font_name}\n")
+                f.write(f"Total items: {len(text_list)}\n")
+                f.write("=" * 80 + "\n\n")
+                
+                for i, (text, ascii_art) in enumerate(text_list, 1):
+                    f.write(f"--- Item {i}: '{text}' ---\n")
+                    f.write(ascii_art)
+                    f.write("\n" + "-" * 40 + "\n\n")
+                
+                f.write("=" * 80 + "\n")
+                f.write("End of Batch ASCII Art\n")
+                f.write("=" * 80 + "\n")
+            
+            return filepath
+        except IOError as e:
+            raise Exception(f"Error saving batch file: {e}")
+
+    def clean_old_files(self, days_old=7):
+        """Remove files older than specified days"""
+        if not os.path.exists(self.output_directory):
+            return 0
+        
+        cutoff_time = datetime.datetime.now() - datetime.timedelta(days=days_old)
+        removed_count = 0
+        
+        try:
+            for filename in os.listdir(self.output_directory):
+                filepath = os.path.join(self.output_directory, filename)
+                if os.path.isfile(filepath):
+                    file_time = datetime.datetime.fromtimestamp(os.path.getmtime(filepath))
+                    if file_time < cutoff_time:
+                        os.remove(filepath)
+                        removed_count += 1
+        except OSError:
+            pass
+        
+        return removed_count
+
+    def get_directory_info(self):
+        """Get information about the output directory"""
+        if not os.path.exists(self.output_directory):
+            return {
+                'exists': False,
+                'path': self.output_directory,
+                'file_count': 0,
+                'total_size': 0
+            }
+        
+        file_count = 0
+        total_size = 0
+        
+        try:
+            for filename in os.listdir(self.output_directory):
+                filepath = os.path.join(self.output_directory, filename)
+                if os.path.isfile(filepath):
+                    file_count += 1
+                    total_size += os.path.getsize(filepath)
+        except OSError:
+            pass
+        
+        return {
+            'exists': True,
+            'path': os.path.abspath(self.output_directory),
+            'file_count': file_count,
+            'total_size': total_size,
+            'total_size_mb': round(total_size / (1024 * 1024), 2)
+        }def __init__(self):
+        self.output_directory = "ascii_output"
+        self.supported_text_formats = ['.txt', '.md', '.rst']
+        self.ensure_output_directory()
+
+    def ensure_output_directory(self):
+        """Create output directory if it does not exist"""
+        if not os.path.exists(self.output_directory):
+            try:
+                os.makedirs(self.output_directory)
+            except OSError as e:
+                print(f"Warning: Could not create output directory: {e}")
+
+    def save_ascii_art(self, ascii_art, filename=None, add_timestamp=True):
+        """Save ASCII art to a text file"""
+        if filename is None:
+            filename = "ascii_art"
+        
+        # Add timestamp if requested
+        if add_timestamp:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{filename}_{timestamp}"
+        
+        # Ensure .txt extension
+        if not filename.endswith('.txt'):
+            filename += '.txt'
+        
+        filepath = os.path.join(self.output_directory, filename)
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                # Add header with generation info
+                f.write("=" * 60 + "\n")
+                f.write("ASCII ART GENERATED BY TEXT-TO-ASCII GENERATOR\n")
+                f.write(f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 60 + "\n\n")
+                f.write(ascii_art)
+                f.write("\n\n" + "=" * 60 + "\n")
+                f.write("End of ASCII Art\n")
+                f.write("=" * 60 + "\n")
+            
+            return filepath
+        except IOError as e:
+            raise Exception(f"Error saving file: {e}")
+
+    def load_text_file(self, filename):
+        """Load text from a file"""
+        # Try different locations and extensions
+        possible_paths = [
+            filename,
+            os.path.join(self.output_directory, filename),
+            filename + '.txt',
+            os.path.join(self.output_directory, filename + '.txt')
+        ]
+        
+        for filepath in possible_paths:
+            if os.path.exists(filepath):
+                try:
+                    with open(filepath, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if content:
+                            return content
+                        else:
+                            raise Exception("File is empty")
+                except IOError as e:
+                    raise Exception(f"Error reading file {filepath}: {e}")
+        
+        raise Exception(f"File not found: {filename}")
+
+    def save_ascii_with_metadata(self, ascii_art, original_text, font_name, filename=None):
+        """Save ASCII art with metadata in JSON format"""
+        if filename is None:
+            filename = "ascii_art_with_metadata"
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{filename}_{timestamp}.json"
+        filepath = os.path.join(self.output_directory, filename)
+        
+        metadata = {
+            'original_text': original_text,
+            'font_used': font_name,
+            'ascii_art': ascii_art,
+            'generated_at': datetime.datetime.now().isoformat(),
+            'generator_info': {
+                'name': 'Text-to-ASCII Art Generator',
+                'version': '1.0'
+            }
+        }
+        
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(metadata, f, indent=2, ensure_ascii=False)
+            return filepath
+        except IOError as e:
+            raise Exception(f"Error saving metadata file: {e}")
+
+    def load_ascii_with_metadata(self, filename):
+        """Load ASCII art with metadata from JSON file"""
+        if not filename.endswith('.json'):
+            filename += '.json'
+        
+        filepath = os.path.join(self.output_directory, filename)
+        
+        if not os.path.exists(filepath):
+            raise Exception(f"Metadata file not found: {filename}")
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                metadata = json.load(f)
+            return metadata
+        except (IOError, json.JSONDecodeError) as e:
+            raise Exception(f"Error loading metadata file: {e}")
+
+    def export_ascii_as_html(self, ascii_art, title="ASCII Art", filename=None):
+        """Export ASCII art as HTML file with proper formatting"""
+        if filename is None:
+            filename = "ascii_art"
+        
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{filename}_{timestamp}.html"
+        filepath = os.path.join(self.output_directory, filename)
+        
+        html_content = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    <style>
+        body {{
+            font-family: 'Courier New', monospace;
+            background-color: #000;
+            color: #00ff00;
+            margin: 20px;
+            line-height: 1;
+        }}
+        .ascii-container {{
+            background-color: #111;
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00ff00;
+            white-space: pre;
+            overflow-x: auto;
+            font-size: 12px;
+        }}
+        .header {{
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 20px;
+        }}
+        .footer {{
+            color: #888;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 10px;
+        }}
+    </style>
+</head>
+<body>

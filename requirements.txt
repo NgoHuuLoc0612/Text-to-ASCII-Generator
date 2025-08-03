@@ -1,0 +1,25 @@
+# Text-to-ASCII Art Generator Requirements
+# Install with: pip install -r requirements.txt
+
+# Main ASCII art generation library
+pyfiglet
+
+# Additional useful libraries (optional)
+colorama
+rich
+
+# Standard library modules used:
+# - os (built-in)
+# - sys (built-in) 
+# - datetime (built-in)
+# - json (built-in)
+# - re (built-in)
+# - platform (built-in)
+# - zipfile (built-in)
+# - typing (built-in)
+# - random (built-in)
+# - time (built-in)
+
+# Note: This application is designed to work with minimal dependencies
+# pyfiglet is the only required external library
+# All other functionality uses Python standard library modules
